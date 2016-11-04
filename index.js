@@ -6,8 +6,8 @@ const program = require('commander');
 program
     .command('run <out-file>')
     .option('-s --session_id <session_id>', 'Session ID.')
-    .option('-rt --rank_type <rank_type>', 'Rank type: daily(Default), weekly, monthly, rookie, original, male, female')
-    .option('-ct --content_type <content_type>', 'Content type: all(Default), illust, manga, ugoira, novel')
+    .option('-r --rank_type <rank_type>', 'Rank type: daily(Default), weekly, monthly, rookie, original, male, female')
+    .option('-t --content_type <content_type>', 'Content type: all(Default), illust, manga, ugoira, novel')
     .option('-d --date <date>', 'YYYY-MM-DD; Default to today.')
     .option('-c --count <count>', 'Count to fetch; Default to 50.')
     .action((outFile, options) => {

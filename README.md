@@ -14,11 +14,11 @@ node index.js run -s <session_id> <out-file> [options]
 
 Session ID.
 
-#### `-rt --rank_type <rank_type>`
+#### `-r --rank_type <rank_type>`
 
 Rank type: daily(Default), weekly, monthly, rookie, original, male, female
 
-#### `-ct --content_type <content_type>`
+#### `-t --content_type <content_type>`
 
 Content type: all(Default), illust, manga, ugoira, novel
 
