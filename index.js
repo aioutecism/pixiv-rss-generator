@@ -152,9 +152,12 @@ const saveImage = (src, outFilePath, callback) => {
     }
 };
 
-const save = (entries, outFile) => {
+const save = (entries, outFilePath) => {
+    const outPathMath = outFilePath.match(/^(.+)\//);
+    const outPath = outPathMath ? outPathMath[1] : './';
+
     let output = entries.map((entry, i) => {
-        const imageFilePath = 'images/' + entry.src.replace(/^.+\/img\/(.+)$/, '$1');
+        const imageFilePath = `${outPath}/images/` + entry.src.replace(/^.+\/img\/(.+)$/, '$1');
         saveImage(entry.src, imageFilePath);
 
         return `${entry.src}
@@ -165,7 +168,7 @@ ${entry.link}`;
 
     output = output.join('\n').trim();
 
-    fs.writeFileSync(outFile, output);
+    fs.writeFileSync(outFilePath, output);
 };
 
 program.parse(process.argv);
