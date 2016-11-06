@@ -41,8 +41,7 @@ const getOptions = (options) => {
     const result = Object.assign({}, {
         rank_type: 'daily',
         content_type: 'all',
-        date: `${now.getFullYear()}-${now.getMonth()}-${now.getDay()}`,
-        rank_type: 'daily',
+        date: `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`,
         count: 50,
     }, options);
 
