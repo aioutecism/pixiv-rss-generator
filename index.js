@@ -8,6 +8,7 @@ program
     .option('-s --session_id <session_id>', 'Session ID.')
     .option('-r --rank_type <rank_type>', 'Rank type: daily(Default), weekly, monthly, rookie, original, male, female')
     .option('-t --content_type <content_type>', 'Content type: all(Default), illust, manga, ugoira, novel')
+    .option('-x --with_r18', 'With R18 content; Default off.')
     .option('-d --date <date>', 'YYYY-MM-DD; Default to today.')
     .option('-c --count <count>', 'Count to fetch; Default to 50.')
     .action((outFile, options) => {
@@ -41,6 +42,7 @@ const getOptions = (options) => {
     const result = Object.assign({}, {
         rank_type: 'daily',
         content_type: 'all',
+        with_r18: false,
         date: `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`,
         count: 50,
     }, options);
@@ -95,7 +97,7 @@ const getEntries = (options, callback) => {
             rank_type: options.rank_type,
             content_type: options.content_type,
             date: options.date,
-            page_x_restrict: 0,
+            page_x_restrict: options.with_r18 ? 1 : 0,
             page,
         });
 
