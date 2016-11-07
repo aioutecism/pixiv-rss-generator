@@ -48,6 +48,25 @@ const downloadImage = (src, headers, outFilePath, callback) => {
         mkdirp(pathMatch[1]);
     }
 
+    let isExist = true;
+
+    try {
+        fs.accessSync(outFilePath, fs.constants.F_OK);
+    }
+    catch (error) {
+        isExist = false;
+    }
+
+    if (isExist) {
+        console.log(`${outFilePath} already exists. Skipping.`);
+
+        if (callback) {
+            callback();
+        }
+
+        return;
+    }
+
     const stream = request({
         url: src,
         headers

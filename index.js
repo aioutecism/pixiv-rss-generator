@@ -59,7 +59,7 @@ const regularizeOptions = (options) => {
     return result;
 };
 
-const extractEntries = (html) => {
+const extractEntries = (html, limit) => {
     const pattern = /data-entry-id="(.+?)".+?data-src="(.+?)".+?data-user-name="(.+?)".+?data-caption="(.+?)".+?data-permalink="(.+?)"/g;
 
     const entries = [];
@@ -86,6 +86,10 @@ const extractEntries = (html) => {
                 parseInt(dateMatch[6], 10)
             ),
         });
+
+        if (limit && entries.length >= limit) {
+            break;
+        }
     }
 
     return entries;
@@ -120,7 +124,7 @@ const getEntries = (options, callback) => {
             }
 
             const json = JSON.parse(body);
-            const entries = extractEntries(json.body.html);
+            const entries = extractEntries(json.body.html, options.count === 0 ? undefined : options.count - total);
 
             result.push.apply(result, entries);
 
@@ -149,29 +153,39 @@ const save = (entries, outFilePath, options) => {
         image_url: 'http://www.pixiv.net/favicon.ico',
         language: 'jp',
         pubDate: new Date(),
+        ttl: 60,
     });
 
     const headers = getHeaders();
 
+    const total = entries.length;
+    let count = 0;
+
     entries.forEach((entry, i) => {
         const imageFilePath = `images/` + entry.src.replace(/^.+\/img\/(.+)$/, '$1');
-        util.downloadImage(entry.src, headers, `${outPath}/${imageFilePath}`);
+        util.downloadImage(entry.src, headers, `${outPath}/${imageFilePath}`, () => {
+            feed.item({
+                guid: entry.id,
+                title: entry.caption,
+                description: `<img src="${options.image_src_prefix}${imageFilePath}" /><br /><br />${entry.caption} by ${entry.userName}`,
+                url: entry.link,
+                author: entry.userName,
+                date: entry.date
+            });
 
-        feed.item({
-            guid: entry.id,
-            title: entry.caption,
-            description: `<img src="${options.image_src_prefix}${imageFilePath}" /><br /><br />${entry.caption} by ${entry.userName}`,
-            url: entry.link,
-            author: entry.userName,
-            date: entry.date
-        });
-    });
+            count++;
 
-    fs.writeFileSync(outFilePath, feed.xml({ indent: true }));
+            console.log(`Entry saved(${count}/${total}): ${entry.id}: ${entry.caption}.`);
 
-    console.log(`Done.
+            if (count >= total) {
+                fs.writeFileSync(outFilePath, feed.xml({ indent: true }));
+
+                console.log(`Done.
 XML file saved in ${outFilePath}.
 Images saved in ${outPath}/images.`);
+            }
+        });
+    });
 };
 
 program.parse(process.argv);
