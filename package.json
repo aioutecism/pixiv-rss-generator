@@ -11,7 +11,7 @@
   "dependencies": {
     "commander": "^2.9.0",
     "googleapis": "^14.1.0",
-    "mkdirp": "^0.5.1",
-    "request": "^2.75.0"
+    "request": "^2.75.0",
+    "rss": "^1.2.1"
   }
 }

@@ -1,7 +1,8 @@
 const fs = require('fs');
-const mkdirp = require('mkdirp');
 const request = require('request');
 const program = require('commander');
+const RSS = require('rss');
+const util = require('./util');
 
 program
     .command('run <out-file>')
@@ -11,14 +12,18 @@ program
     .option('-x --with_r18', 'With R18 content; Default off.')
     .option('-d --date <date>', 'YYYY-MM-DD; Default to today.')
     .option('-c --count <count>', 'Count to fetch; Default to 50.')
+    .option('--title <title>', 'Define title of generated RSS feed; Default is "Pixiv RSS".')
+    .option('--image_src_prefix <image_src_prefix>', 'Prefix for image src; Default is empty.')
     .action((outFile, options) => {
+        options = regularizeOptions(options);
+
         getEntries(options, (error, entries) => {
             if (error) {
                 console.error(error);
                 return;
             }
 
-            save(entries, outFile);
+            save(entries, outFile, options);
         });
     });
 
@@ -36,7 +41,7 @@ const getHeaders = (options) => {
     return headers;
 };
 
-const getOptions = (options) => {
+const regularizeOptions = (options) => {
     const now = new Date();
 
     const result = Object.assign({}, {
@@ -45,6 +50,8 @@ const getOptions = (options) => {
         with_r18: false,
         date: `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`,
         count: 50,
+        title: 'Pixiv RSS',
+        image_src_prefix: '',
     }, options);
 
     result.count = parseInt(result.count, 10);
@@ -52,33 +59,32 @@ const getOptions = (options) => {
     return result;
 };
 
-const getParamString = (params) => {
-    let result = '';
-
-    for (let k in params) {
-        const key = encodeURIComponent(k);
-        const value = encodeURIComponent(params[k]);
-        result += `&${key}=${value}`;
-    }
-
-    return result.substr(1);
-};
-
 const extractEntries = (html) => {
-    const pattern = /data-src="(.+?)".+?data-user-name="(.+?)".+?data-caption="(.+?)".+?data-permalink="(.+?)"/g;
+    const pattern = /data-entry-id="(.+?)".+?data-src="(.+?)".+?data-user-name="(.+?)".+?data-caption="(.+?)".+?data-permalink="(.+?)"/g;
 
     const entries = [];
 
     while (match = pattern.exec(html)) {
-        let src = match[1];
+        let src = match[2].replace(/&amp;/g, '&');
         src = src.replace('400x400_80_a2', '540x540_70');
         src = src.replace('square1200', 'master1200');
 
+        const dateMatch = src.match(/\/img\/(\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+)\//);
+
         entries.push({
+            id: match[1],
             src,
-            userName: match[2],
-            caption: match[3],
-            link: match[4],
+            userName: match[3],
+            caption: match[4],
+            link: match[5].replace(/&amp;/g, '&'),
+            date: new Date(
+                parseInt(dateMatch[1], 10),
+                parseInt(dateMatch[2], 10) - 1,
+                parseInt(dateMatch[3], 10),
+                parseInt(dateMatch[4], 10),
+                parseInt(dateMatch[5], 10),
+                parseInt(dateMatch[6], 10)
+            ),
         });
     }
 
@@ -86,13 +92,11 @@ const extractEntries = (html) => {
 };
 
 const getEntries = (options, callback) => {
-    options = getOptions(options);
-
     const urlBase = `https://www.pixiv.net/rpc/whitecube/index.php`;
     const headers = getHeaders(options);
 
     once = (result, page, total) => {
-        const paramString = getParamString({
+        const paramString = util.getParamString({
             mode: 'ranking',
             rank_type: options.rank_type,
             content_type: options.content_type,
@@ -135,41 +139,39 @@ const getEntries = (options, callback) => {
     once([], 1, 0);
 };
 
-const saveImage = (src, outFilePath, callback) => {
-    const pathMatch = outFilePath.match(/^(.+)\//);
-    if (pathMatch) {
-        mkdirp.sync(pathMatch[1]);
-    }
-
-    const headers = getHeaders();
-
-    const stream = request({
-        url: src,
-        headers
-    }).pipe(fs.createWriteStream(outFilePath));
-
-    if (callback) {
-        stream.on('close', callback);
-    }
-};
-
-const save = (entries, outFilePath) => {
+const save = (entries, outFilePath, options) => {
     const outPathMath = outFilePath.match(/^(.+)\//);
     const outPath = outPathMath ? outPathMath[1] : './';
 
-    let output = entries.map((entry, i) => {
-        const imageFilePath = `${outPath}/images/` + entry.src.replace(/^.+\/img\/(.+)$/, '$1');
-        saveImage(entry.src, imageFilePath);
-
-        return `${entry.src}
-${entry.caption}
-${entry.userName}
-${entry.link}`;
+    const feed = new RSS({
+        title: options.title,
+        site_url: 'http://pixiv.net',
+        image_url: 'http://www.pixiv.net/favicon.ico',
+        language: 'jp',
+        pubDate: new Date(),
     });
 
-    output = output.join('\n').trim();
+    const headers = getHeaders();
 
-    fs.writeFileSync(outFilePath, output);
+    entries.forEach((entry, i) => {
+        const imageFilePath = `images/` + entry.src.replace(/^.+\/img\/(.+)$/, '$1');
+        util.downloadImage(entry.src, headers, `${outPath}/${imageFilePath}`);
+
+        feed.item({
+            guid: entry.id,
+            title: entry.caption,
+            description: `<img src="${options.image_src_prefix}${imageFilePath}" /><br /><br />${entry.caption} by ${entry.userName}`,
+            url: entry.link,
+            author: entry.userName,
+            date: entry.date
+        });
+    });
+
+    fs.writeFileSync(outFilePath, feed.xml({ indent: true }));
+
+    console.log(`Done.
+XML file saved in ${outFilePath}.
+Images saved in ${outPath}/images.`);
 };
 
 program.parse(process.argv);
