@@ -22,6 +22,10 @@ Rank type: daily(Default), weekly, monthly, rookie, original, male, female
 
 Content type: all(Default), illust, manga, ugoira, novel
 
+#### `-x --with_r18`
+
+With R18 content; Default off.
+
 #### `-d --date <date>`
 
 YYYY-MM-DD; Default to today.
